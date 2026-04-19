@@ -42,3 +42,9 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# System prompt and policy text — long, human-readable lines are intentional.
+"src/visavoice/agent/prompts.py" = ["E501"]
+# Test files frequently contain long literal expected values and fixture strings.
+"tests/**" = ["E501"]

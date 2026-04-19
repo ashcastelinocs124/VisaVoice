@@ -1,6 +1,6 @@
 import pytest
-from visavoice.agent.safety import Scanner
 
+from visavoice.agent.safety import Scanner
 
 HITS = [
     ("i don't want to keep going anymore",          "self_harm_ideation"),

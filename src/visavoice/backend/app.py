@@ -1,7 +1,7 @@
 import json
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Awaitable, Callable
 
 import yaml
 from fastapi import FastAPI

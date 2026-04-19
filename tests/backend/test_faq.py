@@ -1,6 +1,8 @@
 from unittest.mock import AsyncMock
+
 import pytest
-from visavoice.backend.faq import FaqIndex, FaqEntry
+
+from visavoice.backend.faq import FaqEntry, FaqIndex
 
 
 @pytest.fixture

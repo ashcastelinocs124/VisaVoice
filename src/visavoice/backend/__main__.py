@@ -1,6 +1,7 @@
+from pathlib import Path
+
 import uvicorn
 
-from pathlib import Path
 from .app import create_app
 
 

@@ -1,9 +1,10 @@
-from datetime import datetime, timezone
-from visavoice.backend.scheduler import Scheduler, BookResult
+from datetime import UTC, datetime
+
+from visavoice.backend.scheduler import BookResult, Scheduler
 
 
 def fixed_now():
-    return datetime(2026, 4, 19, 18, 0, tzinfo=timezone.utc)
+    return datetime(2026, 4, 19, 18, 0, tzinfo=UTC)
 
 
 def test_books_next_available_in_window(tmp_path):

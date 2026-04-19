@@ -1,5 +1,6 @@
 from visavoice.backend.hashing import hash_caller
 
+
 def test_deterministic():
     assert hash_caller("+12175550199", "salt") == hash_caller("+12175550199", "salt")
 

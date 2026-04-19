@@ -1,5 +1,5 @@
-import os
 from visavoice.config import Settings
+
 
 def test_settings_reads_env(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")

@@ -1,7 +1,6 @@
-from dataclasses import dataclass
-from typing import Awaitable, Callable
 import math
-
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 
 EmbedFn = Callable[[list[str]], Awaitable[list[list[float]]]]
 
@@ -44,7 +43,7 @@ class FaqIndex:
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
     na = math.sqrt(sum(x * x for x in a))
     nb = math.sqrt(sum(x * x for x in b))
     if na == 0 or nb == 0:

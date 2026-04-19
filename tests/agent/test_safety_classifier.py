@@ -1,4 +1,5 @@
 from unittest.mock import AsyncMock
+
 from visavoice.agent.safety import Scanner
 
 

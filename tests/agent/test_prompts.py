@@ -1,4 +1,4 @@
-from visavoice.agent.prompts import SYSTEM_PROMPT, CONFIRMATION_TEMPLATES
+from visavoice.agent.prompts import CONFIRMATION_TEMPLATES, SYSTEM_PROMPT
 
 
 def test_system_prompt_requires_readback_before_verify():

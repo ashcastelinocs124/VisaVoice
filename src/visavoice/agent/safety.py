@@ -1,11 +1,10 @@
 import json
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Awaitable, Callable, Optional
 
 from openai import AsyncOpenAI
 
 from .safety_patterns import PATTERNS
-
 
 SCRIPTS: dict[str, str] = {
     "self_harm_ideation": (
@@ -60,13 +59,13 @@ HIGH_SEVERITY = {
 @dataclass(frozen=True)
 class ScanResult:
     hit: bool
-    category: Optional[str] = None
-    severity: Optional[str] = None
-    layer: Optional[str] = None
-    script: Optional[str] = None
+    category: str | None = None
+    severity: str | None = None
+    layer: str | None = None
+    script: str | None = None
 
 
-ClassifierFn = Callable[[str], Awaitable[Optional[str]]]
+ClassifierFn = Callable[[str], Awaitable[str | None]]
 
 
 class Scanner:

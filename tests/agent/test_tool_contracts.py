@@ -1,8 +1,8 @@
-import os
 import json
+import os
+
 import pytest
 from openai import AsyncOpenAI
-
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get("OPENAI_API_KEY"),

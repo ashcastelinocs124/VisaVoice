@@ -36,7 +36,9 @@ class ToolClient:
                                 {"call_id": self._call_id, "uin": uin, "dob": dob},
                                 err_defaults={"verified": False})
 
-    async def book_appointment(self, student_id: str, appointment_type: str, preferred_window: str) -> dict:
+    async def book_appointment(
+        self, student_id: str, appointment_type: str, preferred_window: str
+    ) -> dict:
         return await self._post("/appointments",
                                 {"student_id": student_id, "appointment_type": appointment_type,
                                  "preferred_window": preferred_window},

@@ -1,9 +1,8 @@
 import json
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-
 
 HIGH_SEVERITY_CATEGORIES = {"self_harm_ideation", "acute_medical", "abuse", "deportation_threat"}
 
@@ -22,7 +21,7 @@ class EscalationService:
     def create(self, *, call_id: str, caller_hash: str, category: str,
                severity: str, summary: str, last_turns: list[dict],
                trigger_layer: str) -> EscalationTicket:
-        ts = datetime.now(timezone.utc).isoformat()
+        ts = datetime.now(UTC).isoformat()
         ticket_id = f"esc_{uuid.uuid4().hex[:10]}"
         path = self._dir / f"{ts.replace(':', '').replace('-', '')}_{ticket_id}.json"
         payload = {

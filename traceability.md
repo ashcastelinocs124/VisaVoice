@@ -22,8 +22,8 @@
 | 14 | Prompts module                         | ✅ Done | src/visavoice/agent/prompts.py, tests/agent/test_prompts.py | `SYSTEM_PROMPT` (readback-before-verify, four tools named, prompt-injection refusal, English-only, no legal advice) + `CONFIRMATION_TEMPLATES` (`uin_dob`, `booking`). All 4 tests pass. Commit 64bb699. |
 | 15 | HTTP tool wrappers                     | ✅ Done | src/visavoice/agent/tools.py, tests/agent/test_tools.py | `ToolClient` async wrapper over httpx.AsyncClient; 4 tools (`lookup_faq`, `verify_identity`, `book_appointment`, `escalate_to_human`); `_post()` helper returns typed error dicts for TimeoutException → `reason="timeout"`, ConnectError → `"backend_down"`, HTTPStatusError → `"http_{code}"`; 3.0s default timeout; commit b83f9e3; 5 tests pass |
 | 16 | Tool-call contract tests               | ✅ Done | tests/agent/test_tool_contracts.py | 3 contract tests against gpt-4.1-mini (faq→lookup_faq, booking-after-verify→book_appointment, unverified-booking→verify_identity first); module-level `pytest.mark.skipif` on missing `OPENAI_API_KEY`; commit de9de46. Live-model run: 1/3 passed, 2 failed (the booking-follow-up and verify-first prompts return a clarifying question instead of a tool call under the minimal `SYS` prompt). Spec explicitly permits this outcome ("Either outcome is acceptable; the CI job for contract tests is gated by secret availability"). See Deviations. |
-| 17 | Agent entrypoint (LiveKit worker)      | ⏳ Pending | — | |
-| 24 | CI pipeline                            | ⏳ Pending | — | |
+| 17 | Agent entrypoint (LiveKit worker)      | ✅ Done | src/visavoice/agent/main.py | LiveKit 1.5.4 adaptation of the 0.12.x blueprint. 4 tools registered via `@function_tool()`, safety hook on `user_input_transcribed` (filtered to `is_final=True`), assistant turns captured via `conversation_item_added`, shutdown hook wired via `ctx.add_shutdown_callback(...)` (method, not decorator). `drain()` is sync in 1.x. `Settings()` is constructed inside `entrypoint` so `import visavoice.agent.main` works without env vars. See Deviations for the full 0.12.x → 1.x API mapping. |
+| 24 | CI pipeline                            | ✅ Done | `.github/workflows/ci.yml`, lint/type fixes in src/tests, pyproject.toml per-file-ignores | Two jobs: `test` (ruff + pyright + 59 unit tests) runs always; `contracts` gated on OPENAI_API_KEY secret. Fixed 78 ruff issues (44 auto, 34 manual). Added 2 narrow type-ignores for LiveKit 1.5.4 SDK stubs. |
 
 ## Decisions
 | Decision | Rationale |
@@ -81,6 +81,14 @@
 | src/visavoice/agent/tools.py | Task 15 — `ToolClient` async HTTP wrapper with typed error fallbacks (timeout/backend_down/http_NNN) | ✅ Committed (b83f9e3) |
 | tests/agent/test_tools.py | Task 15 — 5 tests via `pytest-httpx` `httpx_mock`: all 4 happy paths + timeout-becomes-typed-error | ✅ Committed (b83f9e3) |
 | tests/agent/test_tool_contracts.py | Task 16 — 3 live-model contract tests skipped when `OPENAI_API_KEY` not set | ✅ Committed (de9de46) |
+| .github/workflows/ci.yml | Task 24 — GitHub Actions: `test` job (ruff + pyright + 59 unit tests) on all PRs / pushes to main; `contracts` job gated on `secrets.OPENAI_API_KEY` | ✅ Committed |
+| pyproject.toml | Task 24 — added `[tool.ruff.lint.per-file-ignores]` for `src/visavoice/agent/prompts.py` (E501 — long policy text intentional) and `tests/**` (E501 — long fixture strings) | ✅ Committed |
+| src/visavoice/agent/main.py | Task 24 — `import contextlib`; replaced `try/except/pass` with `contextlib.suppress(Exception)` around `session.interrupt()`; added 2 narrow `# type: ignore[...]` for LiveKit 1.5.4 SDK stub mis-annotations (`session.drain()` is sync but typed async; `ctx.shutdown()` is async but typed None) | ✅ Committed |
+| src/visavoice/agent/tools.py | Task 24 — split `book_appointment` signature across lines to stay ≤100 chars | ✅ Committed |
+| src/visavoice/backend/faq.py | Task 24 — `zip(a, b)` → `zip(a, b, strict=True)` (B905) | ✅ Committed |
+| src/visavoice/backend/scheduler.py | Task 24 — shortened a comment to stay ≤100 chars | ✅ Committed |
+| tests/backend/test_store.py | Task 24 — `import contextlib`; `try/except/pass` → `with contextlib.suppress(RuntimeError):`; split 2 one-liner `for` loops onto separate lines (E701) | ✅ Committed |
+| various tests + src files | Task 24 — `ruff check --fix` auto-organized imports (I001) and removed unused imports (F401) across the tree | ✅ Committed |
 
 ## Test Results
 | Test | Result | Notes |
@@ -112,8 +120,23 @@
 | `uv run pytest tests -v --ignore=tests/agent/test_tool_contracts.py` (end of Task 15) | ✅ 59 passed in 0.28s | Matches spec's 54+5 expectation exactly. |
 | `uv run pytest tests/agent/test_tool_contracts.py -v` (Task 16, live model) | ⚠️ 1 passed, 2 failed in 5.13s | Spec file written exactly as specified; `OPENAI_API_KEY` was set so tests were not skipped. `test_faq_intent_calls_lookup_faq` passed; the two booking-path tests returned a clarifying question (`content="..."`, `tool_calls=None`) instead of calling the tool. Per spec: "Either outcome is acceptable; the CI job for contract tests is gated by secret availability." Not a regression — a live-model/prompt signal for Task 17's production system prompt, not the stripped-down `SYS` used here. |
 | `uv run pytest tests -v` (final, end of Task 16) | ⚠️ 60 passed, 2 failed in 5.13s | Same 2 contract-test failures; all 60 non-contract tests green. CI gates contract tests on secret presence. |
+| `uv run ruff check .` (Task 24, before fixes) | ❌ 78 errors (44 auto-fixable) | Mostly I001 (import order), F401 (unused imports), E501 (long lines), SIM105 (try/except/pass), E701 (one-liner `for`), B905 (zip without strict), UP012. |
+| `uv run ruff check .` (Task 24, after fixes) | ✅ All checks passed | 44 auto-fixed via `ruff --fix`; remaining 34 addressed via per-file-ignores (prompts.py + tests/** E501) + manual edits (book_appointment signature split, zip→strict=True, shortened comment, contextlib.suppress, split `for` loops). |
+| `uv run pyright src` (Task 24) | ✅ 0 errors, 0 warnings, 0 informations | Added 2 narrow `# type: ignore[...]` comments in `src/visavoice/agent/main.py` for LiveKit 1.5.4 SDK stub mis-annotations. No blanket file-level suppression needed. |
+| `OPENAI_API_KEY=test-no-network CALLER_HASH_SALT=ci-salt uv run pytest tests --ignore=tests/e2e --ignore=tests/agent/test_tool_contracts.py -q` (Task 24) | ✅ 59 passed in 0.32s | Matches the plan's CI job expectation. |
 
 ## Deviations
+- **Task 17: livekit-agents 0.12.x → 1.5.4 API adaptation.** The plan's blueprint agent code targets 0.12.x. Task 1 resolved to `livekit-agents==1.5.4`, a major version that renamed several APIs. Adaptations made in `src/visavoice/agent/main.py`:
+  - `llm.function_tool` → top-level `livekit.agents.function_tool` (no longer under `llm`).
+  - `agents.Agent(...)` → `Agent(...)` imported directly from `livekit.agents`.
+  - Event `user_speech_committed` (event object with `.alternatives[0].text`) → `user_input_transcribed` emitting `UserInputTranscribedEvent(transcript: str, is_final: bool, ...)`. The handler filters on `event.is_final` so the safety scanner only runs on committed turns. Source: `livekit.agents.UserInputTranscribedEvent` in the installed package.
+  - Event `agent_speech_committed` → `conversation_item_added` emitting `ConversationItemAddedEvent(item: ChatMessage | AgentHandoff)`. The handler filters `item.role == "assistant"` and pulls `item.text_content`.
+  - `ctx.add_shutdown_callback` is a regular method (returns `None`) in 1.x — decorator syntax `@ctx.add_shutdown_callback` would assign `None` back to the callback name. Fixed to call it as a method.
+  - `session.drain()` is synchronous in 1.x (returns `None`, not an awaitable) — removed the `await` that the 0.12.x blueprint used.
+  - `session.interrupt()` returns `asyncio.Future[None]`; still `await`-able, same usage.
+  - `session.say(text, *, allow_interruptions=...)` signature unchanged from the blueprint's usage — kept as-is.
+  - `RealtimeModel(model="gpt-realtime", voice="alloy", temperature=0.6)` — all three kwargs are still accepted in 1.x (voice default changed from "alloy" to "marin" but "alloy" is still a valid value).
+  - Source for all of the above: direct `inspect` of the installed 1.5.4 package (`livekit-agents 1.5.4` from PyPI). No external docs URL consulted — the SDK surface was read directly from the installed module to avoid version-drift against external pages.
 - **Task 2: re-added `[build-system]` to `pyproject.toml`.** Task 1's captured decision (drop `[build-system]` per spec) made `import visavoice` fail under `uv run python` because the package was not installed into the venv. Task 2's explicit verification step `uv run python -c "import visavoice, visavoice.agent, visavoice.backend; print('ok')"` cannot pass without either an installable build-system or PYTHONPATH hacking. Added `hatchling` build-backend + `[tool.hatch.build.targets.wheel] packages = ["src/visavoice"]`. `uv sync` now installs `visavoice==0.0.1` editably. This is the standard uv workflow for `src/`-layout projects; the original Task 1 omission was an oversight.
 - **Task 8: scheduler slot semantics adjusted to make the as-specified tests pass.** With the exact implementation given in the task spec (advisor-rotation within a slot: `_is_free(slot_dt, advisor)` checked per advisor, `for week_offset in range(4)`), two of the four provided tests fail:
   - `test_persists_across_instances` expects `r1.slot_iso != r2.slot_iso`, but advisor-rotation keeps both bookings at the same slot time (13:00) with different advisors (Chen then Patel).

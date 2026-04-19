@@ -1,5 +1,29 @@
 # Learnings
 
+### 2026-04-19 — Adding ruff+pyright to an existing Python codebase: use per-file-ignores for prompts + tests, narrow `# type: ignore[rule]` for third-party SDK stub gaps
+**Ref:** CI > .github/workflows/ci.yml; Architecture > agent/main.py, agent/prompts.py
+- **What:** When wiring CI (Task 24) across the visavoice repo, the first `ruff check .` turned up 78 errors — 44 auto-fixable (import order I001, unused imports F401, `encode("utf-8")` UP012), and 34 that were either intentional (long lines in `agent/prompts.py`, long fixture strings in `tests/**`), or trivial real issues (`zip` without `strict=`, a `try/except/pass`, one-liner `for t in threads: t.start()`). `pyright src` turned up 2 real errors, both from LiveKit 1.5.4's type stubs: `session.drain()` is mis-typed as async (it returns `None` synchronously) and `ctx.shutdown()` is mis-typed as returning `None` (it's a coroutine).
+- **Why it matters:** The knee-jerk fix of disabling E501 globally or adding a file-level `# pyright: reportUnknownMemberType=false` would hide future real issues in those files. The clean fix is targeted: `[tool.ruff.lint.per-file-ignores]` for the two files where long lines are semantically meaningful (system prompt + test fixtures), and two narrow single-line `# type: ignore[unused-coroutine]` / `# type: ignore[general-type-issues]` with one-line comments explaining the SDK stub mismatch. Keeps all the rules live everywhere else.
+- **Fix/Pattern:** Run `ruff check . --fix` first; triage the remainder by code (`| awk '{print $1}' | sort | uniq -c | sort -rn`); for each remaining category decide: fix in-place, per-file-ignore (if structural), or narrow `# noqa`. For pyright SDK-stub issues, suppress the *specific rule* at the *specific line* with a comment explaining why it's a stub gap, never a blanket file-level suppression unless it's truly the whole file.
+
+### 2026-04-19 — GitHub Actions `if:` expressions can reference secrets, but job-level gating is cleaner than step-level for secret-dependent suites
+**Ref:** CI > .github/workflows/ci.yml
+- **What:** Task 24's spec gates the tool-contract test suite on `OPENAI_API_KEY` availability using `if: ${{ secrets.OPENAI_API_KEY != '' }}` at the *job* level (not the step). Two jobs (`test`, `contracts`) with independent inputs and independent skip conditions is easier to reason about than one job with per-step gates — the PR check list shows a clean "contracts (skipped)" entry for forks that don't have the secret, and contributors don't wonder whether an individual step was silently skipped.
+- **Why it matters:** Fork-safety on public repos: `secrets.*` is empty for PRs from forks, so any step that unconditionally tries to `${{ secrets.OPENAI_API_KEY }}` would pass an empty string to the test and produce confusing auth errors instead of a clean skip. Job-level `if` skips the entire job cleanly.
+- **Fix/Pattern:** For any secret-dependent test suite, put it in its own job with `if: ${{ secrets.FOO != '' }}` at the job level. Keep the always-on job (lint + types + non-network tests) first so PR reviewers always see a green signal within ~60s.
+
+### 2026-04-19 — livekit-agents 0.12.x → 1.x renamed user/agent speech events and several APIs
+**Ref:** Architecture > agent/main.py
+- **What:** The visavoice plan was written for `livekit-agents 0.12.x` but `uv sync` resolved `livekit-agents==1.5.4`. Pasting the blueprint verbatim fails in several places. The deltas I hit while wiring Task 17:
+  - `llm.function_tool` → `livekit.agents.function_tool` (top-level, no longer under `llm`).
+  - `agents.Agent(...)` → `Agent(...)` directly from `livekit.agents`.
+  - Event `user_speech_committed` (event.alternatives[0].text) → `user_input_transcribed` emitting `UserInputTranscribedEvent(transcript: str, is_final: bool)`. Must filter `is_final=True` to only act on committed turns.
+  - Event `agent_speech_committed` → `conversation_item_added` emitting `ConversationItemAddedEvent(item: ChatMessage | AgentHandoff)`. Use `item.role == "assistant"` + `item.text_content`.
+  - `JobContext.add_shutdown_callback` is a method that returns `None` in 1.x, not a decorator factory. Using `@ctx.add_shutdown_callback` assigns `None` back to the callback name — call it as `ctx.add_shutdown_callback(fn)` instead.
+  - `AgentSession.drain()` is synchronous in 1.x (returns `None`). Do NOT `await` it. `AgentSession.interrupt()` still returns an awaitable future.
+- **Why it matters:** Every one of these would have been a runtime AttributeError or a silent no-op (the shutdown hook being the most dangerous: it would look wired up but the callback would never run). Worse, the import-only verification gate passes for all of them except the decorator-as-method one, so static checks do not catch it.
+- **Fix/Pattern:** When the plan's SDK version doesn't match the installed version, introspect the installed surface directly — `uv run python -c "import X; print(dir(X))"` and `inspect.signature(...)` — rather than trusting the blueprint. Capture the version mismatch in traceability.md's Deviations section with the exact 0.12.x → 1.x mapping so a follow-up maintainer doesn't have to rediscover it.
+
 ### 2026-04-19 — uv src-layout projects need `[build-system]` for `import <pkg>` under `uv run`
 **Ref:** Architecture > Packaging / pyproject.toml
 - **What:** Task 1 dropped `[build-system]` from `pyproject.toml` per spec. Result: `uv sync` did not install the `visavoice` package into `.venv/lib/python3.12/site-packages/`, so `uv run python -c "import visavoice"` failed with `ModuleNotFoundError`.

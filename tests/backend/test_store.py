@@ -1,3 +1,4 @@
+import contextlib
 import json
 import threading
 from pathlib import Path
@@ -27,10 +28,8 @@ def test_write_is_atomic(tmp_path, monkeypatch):
         raise RuntimeError("simulated crash")
 
     monkeypatch.setattr(Path, "replace", boom)
-    try:
+    with contextlib.suppress(RuntimeError):
         store.write([{"v": "second"}])
-    except RuntimeError:
-        pass
 
     # Original file intact, no partial write at target
     assert json.loads(path.read_text()) == [{"v": "first"}]
@@ -48,8 +47,10 @@ def test_concurrent_writes_do_not_corrupt(tmp_path):
             store.write(current)
 
     threads = [threading.Thread(target=writer, args=(n,)) for n in range(4)]
-    for t in threads: t.start()
-    for t in threads: t.join()
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
 
     # May lose writes (last-writer-wins), but file must be valid JSON.
     data = store.read()

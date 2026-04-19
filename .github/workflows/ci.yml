@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run pyright src
+      - name: unit tests
+        env:
+          OPENAI_API_KEY: test-no-network
+          CALLER_HASH_SALT: ci-salt
+        run: uv run pytest tests -v --ignore=tests/e2e --ignore=tests/agent/test_tool_contracts.py
+
+  contracts:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.OPENAI_API_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - name: tool-contract tests
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CALLER_HASH_SALT: ci-salt
+        run: uv run pytest tests/agent/test_tool_contracts.py -v

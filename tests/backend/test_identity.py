@@ -1,6 +1,4 @@
-import pytest
 from visavoice.backend.identity import IdentityService, VerifyResult
-
 
 STUDENTS = [
     {"student_id": "s_042", "uin": "654321098", "dob": "2002-03-14", "first_name": "Mei", "last_name": "Chen", "email": "mei@illinois.edu"},

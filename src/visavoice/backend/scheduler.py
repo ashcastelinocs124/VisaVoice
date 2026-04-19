@@ -1,11 +1,10 @@
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, time, timedelta, timezone
+from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
-from typing import Callable
 
 from .store import JsonStore
-
 
 ADVISORS = ["Advisor Chen", "Advisor Patel", "Advisor Kim"]
 SLOT_TIMES_BY_WINDOW = {
@@ -32,7 +31,7 @@ class BookResult:
 
 
 class Scheduler:
-    def __init__(self, path: Path, now_fn: Callable[[], datetime] = lambda: datetime.now(timezone.utc)):
+    def __init__(self, path: Path, now_fn: Callable[[], datetime] = lambda: datetime.now(UTC)):
         self._store = JsonStore(path, default=[])
         self._now = now_fn
 
@@ -46,7 +45,7 @@ class Scheduler:
         for week_offset in range(3):
             target_date = _next_weekday(now, weekday, week_offset)
             for t in slot_times:
-                slot_dt = datetime.combine(target_date.date(), t, tzinfo=timezone.utc)
+                slot_dt = datetime.combine(target_date.date(), t, tzinfo=UTC)
                 if slot_dt <= now:
                     continue
                 advisor = self._first_free_advisor(slot_dt)
@@ -71,7 +70,7 @@ class Scheduler:
         """Return first advisor with no booking at this slot, or None if slot is fully taken."""
         existing = self._store.read()
         taken = {b["advisor"] for b in existing if b["slot_iso"] == slot_dt.isoformat()}
-        # One booking per slot regardless of advisor — once any advisor is booked, the slot is taken.
+        # One booking per slot regardless of advisor — once any advisor books, slot is taken.
         if taken:
             return None
         return ADVISORS[0]

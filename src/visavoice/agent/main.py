@@ -14,6 +14,7 @@ traceability.md (Task 17) for the mapping from the 0.12.x blueprint.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import hashlib
 import json
 import logging
@@ -43,7 +44,7 @@ log = structlog.get_logger()
 
 
 def _hash_caller(number: str, salt: str) -> str:
-    return hashlib.sha256(f"{salt}|{number}".encode("utf-8")).hexdigest()
+    return hashlib.sha256(f"{salt}|{number}".encode()).hexdigest()
 
 
 async def entrypoint(ctx: JobContext) -> None:
@@ -137,11 +138,9 @@ async def entrypoint(ctx: JobContext) -> None:
             layer=result.layer,
             severity=result.severity,
         )
-        try:
+        with contextlib.suppress(Exception):
             # interrupt() returns an asyncio.Future in 1.x — awaiting is fine.
             await session.interrupt()
-        except Exception:
-            pass
         if result.script:
             await session.say(result.script, allow_interruptions=False)
         await tools.escalate_to_human(
@@ -152,8 +151,10 @@ async def entrypoint(ctx: JobContext) -> None:
             trigger_layer=result.layer or "unknown",
         )
         # drain() is synchronous in 1.x (returns None) — do NOT await.
-        session.drain()
-        await ctx.shutdown()
+        # LiveKit 1.5.4 type stubs mis-annotate drain() as async.
+        session.drain()  # type: ignore[unused-coroutine]
+        # LiveKit 1.5.4 stubs mis-type shutdown() as returning None; it is a coroutine.
+        await ctx.shutdown()  # type: ignore[general-type-issues]
 
     # --- Event wiring ---------------------------------------------------------
     # 1.x renamed the finalized-user-transcript event:
