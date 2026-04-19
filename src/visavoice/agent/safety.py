@@ -1,5 +1,8 @@
+import json
 from dataclasses import dataclass
 from typing import Awaitable, Callable, Optional
+
+from openai import AsyncOpenAI
 
 from .safety_patterns import PATTERNS
 
@@ -95,3 +98,39 @@ class Scanner:
             severity="high" if category in HIGH_SEVERITY else "medium",
             layer="classifier", script=SCRIPTS.get(category),
         )
+
+
+def make_openai_classifier(api_key: str, model: str = "gpt-4.1-mini") -> ClassifierFn:
+    """
+    Returns a classifier that maps utterances to a safety category or None.
+    """
+    client = AsyncOpenAI(api_key=api_key, timeout=0.5)
+
+    system = (
+        "You are a safety classifier for a university advising voice assistant. "
+        "Given a short user utterance, decide if it contains any of these "
+        "categories: self_harm_ideation, acute_medical, abuse, sevis_termination, "
+        "ice_contact, police_contact, deportation_threat. Be conservative: only "
+        "flag when clearly present. "
+        'Respond with a single JSON object: {"category": "<name>|none"}.'
+    )
+
+    async def classify(utterance: str) -> str | None:
+        resp = await client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": utterance},
+            ],
+            response_format={"type": "json_object"},
+            max_tokens=20,
+            temperature=0,
+        )
+        content = resp.choices[0].message.content or "{}"
+        data = json.loads(content)
+        cat = data.get("category")
+        if cat in {None, "none", ""}:
+            return None
+        return cat
+
+    return classify
