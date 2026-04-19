@@ -15,6 +15,10 @@ Voice-based AI assistant for international students to book/reschedule/cancel IS
 - Tests: 62 unit/integration tests green; ruff clean; pyright 0 errors. CI workflow at `.github/workflows/ci.yml`
 - Key conventions introduced: src-layout package with `[build-system] = hatchling`, FastAPI lifespan (not deprecated startup event), safety-hit shutdown path extracted to module-level `handle_safety_scan` for testability
 
+## Git push policy (HARD RULE)
+
+Every push to a remote MUST go through the `/gitpush` skill. Never run `git push`, `gh repo create --push`, or any other push-equivalent directly in Bash — even for "simple" pushes to an already-tracked branch. The skill runs a pre-push secret scan (env files, `.pem`/`.key` files, credentials in diff hunks) that raw `git push` skips. If a push happens outside the skill, log it in `learnings.md` and run `/gitpush` retroactively against the pushed branch as an audit.
+
 ## Learnings
 This project maintains a `learnings.md` file at the project root. Add entries whenever you discover something interesting. Each entry must include a **Ref** subtitle pointing to the relevant CLAUDE.md section. Only read `learnings.md` when its contents are directly relevant to the current task.
 
