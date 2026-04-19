@@ -47,6 +47,51 @@ def _hash_caller(number: str, salt: str) -> str:
     return hashlib.sha256(f"{salt}|{number}".encode()).hexdigest()
 
 
+async def handle_safety_scan(
+    *,
+    transcript: str,
+    session: AgentSession,
+    ctx: JobContext,
+    scanner: Scanner,
+    tools: ToolClient,
+    last_turns: list[dict],
+    call_id: str,
+) -> None:
+    """Run the safety scanner; on hit, interrupt, speak script, escalate, shut down.
+
+    Extracted to module-level so it can be unit-tested with mocked dependencies.
+    Drain/shutdown semantics (livekit-agents 1.5.4):
+    - ``AgentSession.drain`` is async — must be awaited.
+    - ``JobContext.shutdown`` is sync (returns ``None``) — must NOT be awaited.
+    """
+    result = await scanner.scan(transcript)
+    if not result.hit:
+        return
+    log.warning(
+        "safety_hit",
+        call_id=call_id,
+        category=result.category,
+        layer=result.layer,
+        severity=result.severity,
+    )
+    with contextlib.suppress(Exception):
+        # interrupt() returns an asyncio.Future in 1.x — awaiting is fine.
+        await session.interrupt()
+    if result.script:
+        await session.say(result.script, allow_interruptions=False)
+    await tools.escalate_to_human(
+        category=result.category or "unknown",
+        severity=result.severity or "high",
+        summary=f"Safety trigger: {result.category} via {result.layer}.",
+        last_turns=last_turns[-5:],
+        trigger_layer=result.layer or "unknown",
+    )
+    # drain() is async in 1.x — must be awaited so pending turns flush before shutdown.
+    await session.drain()
+    # shutdown() is sync in 1.x — returns None, must NOT be awaited.
+    ctx.shutdown()
+
+
 async def entrypoint(ctx: JobContext) -> None:
     """LiveKit worker entrypoint. Invoked once per job (per call)."""
     settings = Settings()
@@ -126,35 +171,14 @@ async def entrypoint(ctx: JobContext) -> None:
         tools=[lookup_faq, verify_identity, book_appointment, escalate_to_human],
     )
 
-    async def _safety_handler(transcript: str) -> None:
-        """Run the safety scanner; on hit, interrupt, speak script, escalate, shutdown."""
-        result = await scanner.scan(transcript)
-        if not result.hit:
-            return
-        log.warning(
-            "safety_hit",
-            call_id=call_id,
-            category=result.category,
-            layer=result.layer,
-            severity=result.severity,
-        )
-        with contextlib.suppress(Exception):
-            # interrupt() returns an asyncio.Future in 1.x — awaiting is fine.
-            await session.interrupt()
-        if result.script:
-            await session.say(result.script, allow_interruptions=False)
-        await tools.escalate_to_human(
-            category=result.category or "unknown",
-            severity=result.severity or "high",
-            summary=f"Safety trigger: {result.category} via {result.layer}.",
-            last_turns=last_turns[-5:],
-            trigger_layer=result.layer or "unknown",
-        )
-        # drain() is synchronous in 1.x (returns None) — do NOT await.
-        # LiveKit 1.5.4 type stubs mis-annotate drain() as async.
-        session.drain()  # type: ignore[unused-coroutine]
-        # LiveKit 1.5.4 stubs mis-type shutdown() as returning None; it is a coroutine.
-        await ctx.shutdown()  # type: ignore[general-type-issues]
+    def _log_safety_task_exception(task: asyncio.Task) -> None:
+        """Done-callback: surface exceptions raised inside the fire-and-forget
+        safety-scan task. Without this, `asyncio.create_task` only logs errors at
+        GC time, which is fail-open behavior and hides real bugs.
+        """
+        exc = task.exception()
+        if exc is not None:
+            log.error("safety_handler_failed", exc_info=exc, call_id=call_id)
 
     # --- Event wiring ---------------------------------------------------------
     # 1.x renamed the finalized-user-transcript event:
@@ -169,7 +193,18 @@ async def entrypoint(ctx: JobContext) -> None:
         text = event.transcript or ""
         last_turns.append({"role": "user", "text": text})
         # Fire-and-forget so the safety hook runs in parallel with the model.
-        asyncio.create_task(_safety_handler(text))
+        safety_task = asyncio.create_task(
+            handle_safety_scan(
+                transcript=text,
+                session=session,
+                ctx=ctx,
+                scanner=scanner,
+                tools=tools,
+                last_turns=last_turns,
+                call_id=call_id,
+            )
+        )
+        safety_task.add_done_callback(_log_safety_task_exception)
 
     # 1.x emits assistant turns via "conversation_item_added" whose .item is a
     # ChatMessage with .role and .text_content. This replaces 0.12.x's

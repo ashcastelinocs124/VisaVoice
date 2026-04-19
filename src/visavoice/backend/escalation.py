@@ -4,7 +4,17 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-HIGH_SEVERITY_CATEGORIES = {"self_harm_ideation", "acute_medical", "abuse", "deportation_threat"}
+# Must stay in sync with visavoice.agent.safety.HIGH_SEVERITY.
+# The agent-side scanner is the authoring source, but the backend re-declares the set
+# rather than importing across the agent/backend boundary so the two packages remain
+# independently deployable. If you add a category here, mirror it in agent/safety.py.
+HIGH_SEVERITY_CATEGORIES = {
+    "self_harm_ideation",
+    "acute_medical",
+    "abuse",
+    "deportation_threat",
+    "ice_contact",
+}
 
 
 @dataclass(frozen=True)
