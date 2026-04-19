@@ -1,9 +1,19 @@
 # visavoice — CLAUDE.md
 
-> Status: brainstorming. Tech stack and architecture TBD pending design approval.
+> Status: v0 code-only milestones implemented on `feat/v0`. Tasks 18–23 (Fly.io deploy, Twilio/LiveKit SIP wiring, Tier-3 voice harness) still require account/infra access and are deferred.
 
 ## Project summary
 Voice-based AI assistant for international students to book/reschedule/cancel ISSS (International Student & Scholar Services) appointments, answer common questions, route to the correct advisor, and escalate sensitive cases to humans.
+
+## Completed Work
+
+### v0 code — 2026-04-19
+- Inbound phone AI receptionist (English only) — design at `docs/plans/2026-04-19-visavoice-design.md`, plan at `docs/plans/2026-04-19-visavoice-v0-implementation.md`, traceability at `traceability.md`
+- Stack: Twilio (to be wired) → LiveKit Agents 1.5.4 → OpenAI Realtime (`gpt-realtime`, voice=alloy) with OpenAI `gpt-4.1-mini` safety classifier and `text-embedding-3-small` for FAQ retrieval
+- Backend: FastAPI with atomic-write JSON stores. Endpoints: `/health`, `/faq/lookup`, `/identity/verify`, `/appointments`, `/escalation`
+- Agent: four registered tools (`lookup_faq`, `verify_identity`, `book_appointment`, `escalate_to_human`) + parallel safety scanner on every final user transcript (regex + classifier; regex is the non-negotiable layer)
+- Tests: 62 unit/integration tests green; ruff clean; pyright 0 errors. CI workflow at `.github/workflows/ci.yml`
+- Key conventions introduced: src-layout package with `[build-system] = hatchling`, FastAPI lifespan (not deprecated startup event), safety-hit shutdown path extracted to module-level `handle_safety_scan` for testability
 
 ## Learnings
 This project maintains a `learnings.md` file at the project root. Add entries whenever you discover something interesting. Each entry must include a **Ref** subtitle pointing to the relevant CLAUDE.md section. Only read `learnings.md` when its contents are directly relevant to the current task.
