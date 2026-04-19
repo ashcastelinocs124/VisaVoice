@@ -1,0 +1,37 @@
+[project]
+name = "visavoice"
+version = "0.0.1"
+description = "Voice AI receptionist for UIUC ISSS"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+  "pydantic>=2.9",
+  "pyyaml>=6.0",
+  "httpx>=0.27",
+  "openai>=1.54",
+  "livekit-agents[openai,silero,turn-detector]>=0.12",
+  "livekit-plugins-openai>=0.10",
+  "python-dotenv>=1.0",
+  "structlog>=24.4",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "pytest-httpx>=0.34",
+  "ruff>=0.7",
+  "pyright>=1.1",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]

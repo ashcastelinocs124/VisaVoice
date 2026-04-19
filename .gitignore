@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.env
+backend/data/appointments.json
+backend/data/calls/
+backend/data/escalations/
+tests/fixtures/audio/recordings/
+*.log
+.DS_Store
