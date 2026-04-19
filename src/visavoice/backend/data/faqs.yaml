@@ -1,0 +1,24 @@
+- id: opt_basics
+  question: "When can I apply for OPT?"
+  answer: >
+    You can apply for post-completion OPT up to 90 days before your program end date
+    and no later than 60 days after. File Form I-765 with USCIS. ISSS must first
+    recommend OPT in SEVIS, which requires submitting an OPT request through iSTART.
+  citation_url: "https://isss.illinois.edu/students/employment/opt"
+
+- id: travel_signature
+  question: "Do I need a new travel signature on my I-20 to re-enter the US?"
+  answer: >
+    Yes. Your I-20 needs a travel signature dated within the last 12 months
+    (within the last 6 months if you are on OPT). If your signature is older
+    than that, request a new one through iSTART at least 5 business days
+    before you travel.
+  citation_url: "https://isss.illinois.edu/students/travel"
+
+- id: address_change
+  question: "Do I need to report a change of address?"
+  answer: >
+    Yes. Federal regulations require you to update your US address in the
+    MyUIUC student portal within 10 days of moving. The address automatically
+    syncs to your SEVIS record. You do not need to contact ISSS separately.
+  citation_url: "https://isss.illinois.edu/students/address"

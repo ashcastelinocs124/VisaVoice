@@ -2256,7 +2256,7 @@ wheels = [
 [[package]]
 name = "visavoice"
 version = "0.0.1"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "httpx" },

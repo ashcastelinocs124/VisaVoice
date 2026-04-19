@@ -1,0 +1,7 @@
+[
+  {"student_id": "s_001", "uin": "100000001", "dob": "2001-01-15", "first_name": "Akira",  "last_name": "Tanaka",   "email": "akira@illinois.edu"},
+  {"student_id": "s_002", "uin": "100000002", "dob": "2002-05-22", "first_name": "Priya",  "last_name": "Sharma",   "email": "priya@illinois.edu"},
+  {"student_id": "s_042", "uin": "654321098", "dob": "2002-03-14", "first_name": "Mei",    "last_name": "Chen",     "email": "mei@illinois.edu"},
+  {"student_id": "s_099", "uin": "012345678", "dob": "2000-12-31", "first_name": "Zara",   "last_name": "Ahmed",    "email": "zara@illinois.edu"},
+  {"student_id": "s_150", "uin": "987654321", "dob": "2003-07-08", "first_name": "Lukas",  "last_name": "Müller",   "email": "lukas@illinois.edu"}
+]
