@@ -1,7 +1,8 @@
 # Traceability — visavoice v0 implementation
 **Started:** 2026-04-19
+**Completed:** 2026-04-19 (code-only scope)
 **Goal:** Execute tasks 1–17 + 24 from the v0 implementation plan end-to-end in autopilot mode on `feat/v0`.
-**Status:** 🔄 In Progress
+**Status:** ✅ Complete (code). Tasks 18–23 (Fly.io deploy, Twilio/LiveKit SIP, Tier-3 voice harness) deferred to the user — they need account/infra access.
 
 ## Steps
 | # | Step | Status | Files Touched | Notes |
