@@ -1,6 +1,6 @@
 # visavoice
 
-A voice-based AI receptionist for UIUC International Student and Scholar Services (ISSS). International students dial a phone number and talk to an AI that answers common immigration-related questions, books advising appointments, and safely hands off to humans when the situation calls for it.
+A voice-based AI receptionist for Uni International Offices. International students dial a phone number and talk to an AI that answers common immigration-related questions, books advising appointments, and safely hands off to humans when the situation calls for it.
 
 > **Status:** v0 code complete on `main`. 62 tests passing, CI green. Deploy + telephony wiring (Fly.io, Twilio DID, LiveKit SIP trunk) not yet done — credentials required.
 
